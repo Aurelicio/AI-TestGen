@@ -1,0 +1,26 @@
+Geração 02 - Codekru
+
+1. Functional Testing
+Positive Test Cases:
+Verify can create an account by entering a valid username (e.g., "user123") a valid password (e., "Password!") and clicking the "Create Account" button. Expected: is redirected to the login page with a success.
+     user create an account using the maximum length username (15 characters, e., "user123456789012") and a valid password (e.g., "1!") and clicking the "Create Account" button. Expected: User is redirected the login page with a success message.
+    Verify user can an account using the minimum length username5 characters, e.g "user1") and a valid (e.g "Password1!") and clicking the "Create Account" button. : User is redirected to login page with a success.
+ Verify user can create an account with a username containing only alphanumeric characters (e.g.,user2023") and a valid password (e.g., "Password1 and clicking the "Create" button.  User is redirected the login page a success message.
+    Verify user can an account with a password that meets all requirementse.g., "Valid1!") and clicking "Create Account" button : User is redirected to the login with a success.
+
+
+ Test:
+
+    Verify user cannot create an account with a username shorter than 5 (e.g., "user") and a valid passworde.g., "Password!") and clicking the "Create Account" button : Error message indicating must be at least 5 characters.
+   li>Verify cannot an account with a username longer than 15 characters (.g., "user1234567890123") and a valid password (e.g., "Password1!") and clicking the "Create Account button. <>Expected: Error message displays indicating username must be at most 15 characters.Verify user cannot an account with a password than 8 (e.g., "1!") and a valid (e.g., "123") and clicking theCreate Account".  Error message displays password must be least 8 characters.
+    Verify user cannot create account a password longer than  characters (e.g.,Password123456789!") and a valid username (e.g., "user123") and clicking "Create Account" button. <>: Error message displays indicating password must be at most  characters.
+    Verify user cannot create an account with a password that not contain a character (e.g., "Password1") and a valid username (e.g., "user123") and clicking the "Create Account" button. Expected: Error message indicating password must at least one special character.
+
+
+Edge and Boundary Cases:
+    Verify user cannot create an account with a username special characters (e.g "user@123") and a password (e.g., "Password1!") and clicking the " Account" button. <><>Expected: Error message displays indicating username cannot contain special.
+    Verify user cannot create an account with an empty field and a passworde.,Password1!") and clicking the "Create Account button. Expected: Error message indicating username is required.
+    Verify user create an account an empty password and valid username (e.g "123 and theCreate" button. Expected:
+     user cannot create an account a username of exactly 5 characters and a of  characters (e.g., "user1 and password "Pass123 and clicking the "Create Account" button. 
+    Verify user cannot an account with a username of exactly 15 characters and a password of exactly 15 characters (e.g., username "user456789" and password "Password1!") clicking the "Create Account" button. Expected: User is redirected to the login page with a success message.
+ul>

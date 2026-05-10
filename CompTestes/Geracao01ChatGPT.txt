@@ -1,0 +1,169 @@
+Geração 01 - ChatGPT
+
+Vou estruturar os casos de teste usando **Particionamento de Equivalência (PE)** e **Análise de Valor Limite (AVL)**, separando por campo (usuário e senha) e depois combinando cenários completos.
+
+---
+
+# 🔹 1. Campo: Usuário
+
+## 📌 Regras
+
+* Apenas caracteres **alfanuméricos**
+* Tamanho: **mín 5 / máx 15**
+* **Sem caracteres especiais**
+
+---
+
+## ✅ Particionamento de Equivalência (PE)
+
+### Classes válidas
+
+* Usuário com 5 a 15 caracteres alfanuméricos
+
+**Casos válidos:**
+
+1. `abcde` → válido (mínimo)
+2. `usuario123` → válido
+3. `user12345678901` → válido (15 caracteres)
+
+---
+
+### Classes inválidas
+
+1. **Menor que 5 caracteres**
+
+   * `abcd` → inválido
+
+2. **Maior que 15 caracteres**
+
+   * `usuario1234567890` → inválido
+
+3. **Com caracteres especiais**
+
+   * `user@123` → inválido
+   * `user_123` → inválido
+
+4. **Com espaços**
+
+   * `user 123` → inválido
+
+---
+
+## 🔍 Análise de Valor Limite (AVL)
+
+| Caso | Entrada                 | Resultado esperado |
+| ---- | ----------------------- | ------------------ |
+| 1    | `abcd` (4)              | Inválido           |
+| 2    | `abcde` (5)             | Válido             |
+| 3    | `abcdefghijklmno` (15)  | Válido             |
+| 4    | `abcdefghijklmnop` (16) | Inválido           |
+
+---
+
+# 🔹 2. Campo: Senha
+
+## 📌 Regras
+
+* Tamanho: **mín 8 / máx 15**
+* Deve conter:
+
+  * 1 letra maiúscula
+  * 1 letra minúscula
+  * 1 número
+  * 1 caractere especial
+
+---
+
+## ✅ Particionamento de Equivalência (PE)
+
+### Classe válida
+
+* Senha que atende **todas as regras**
+
+**Casos válidos:**
+
+1. `Abcdef1@` → válido (mínimo)
+2. `Senha123!` → válido
+3. `Abcdefghij1@23` → válido (15 caracteres)
+
+---
+
+### Classes inválidas
+
+1. **Menor que 8 caracteres**
+
+   * `Ab1@cd` → inválido
+
+2. **Maior que 15 caracteres**
+
+   * `Abcdefghijklmn1@` → inválido
+
+3. **Sem letra maiúscula**
+
+   * `abcdef1@` → inválido
+
+4. **Sem letra minúscula**
+
+   * `ABCDEF1@` → inválido
+
+5. **Sem número**
+
+   * `Abcdefg@` → inválido
+
+6. **Sem caractere especial**
+
+   * `Abcdefg1` → inválido
+
+7. **Sem múltiplos critérios**
+
+   * `abcdefg1` → inválido (sem maiúscula e especial)
+
+---
+
+## 🔍 Análise de Valor Limite (AVL)
+
+| Caso | Entrada                 | Resultado esperado |
+| ---- | ----------------------- | ------------------ |
+| 1    | `Ab1@cde` (7)           | Inválido           |
+| 2    | `Ab1@cdef` (8)          | Válido             |
+| 3    | `Abcdefghij1@23` (15)   | Válido             |
+| 4    | `Abcdefghijk1@234` (16) | Inválido           |
+
+---
+
+# 🔹 3. Casos de Teste Combinados (Fluxo Completo)
+
+| ID   | Usuário             | Senha              | Resultado esperado         |
+| ---- | ------------------- | ------------------ | -------------------------- |
+| CT01 | `abcde`             | `Abcdef1@`         | Sucesso                    |
+| CT02 | `abcd`              | `Abcdef1@`         | Erro (usuário curto)       |
+| CT03 | `usuario1234567890` | `Abcdef1@`         | Erro (usuário longo)       |
+| CT04 | `user@123`          | `Abcdef1@`         | Erro (usuário inválido)    |
+| CT05 | `usuario123`        | `abcdef1@`         | Erro (senha sem maiúscula) |
+| CT06 | `usuario123`        | `ABCDEF1@`         | Erro (senha sem minúscula) |
+| CT07 | `usuario123`        | `Abcdefg@`         | Erro (senha sem número)    |
+| CT08 | `usuario123`        | `Abcdefg1`         | Erro (senha sem especial)  |
+| CT09 | `usuario123`        | `Ab1@cd`           | Erro (senha curta)         |
+| CT10 | `usuario123`        | `Abcdefghijk1@234` | Erro (senha longa)         |
+| CT11 | `user123`           | `Abcdef1@`         | Sucesso                    |
+
+---
+
+# 🔹 4. Observações importantes (boas práticas de teste)
+
+* Validar mensagens de erro específicas (ex: “senha deve conter ao menos 1 número”)
+* Testar campos vazios
+* Testar entradas com:
+
+  * espaços no início/fim
+  * copy/paste
+* Testar limites com dados reais (ex: exatamente 15 caracteres)
+* Verificar se há **case sensitivity** no login
+
+---
+
+Se quiser, posso transformar isso em:
+
+* Casos no formato **Gherkin (BDD)**
+* Planilha pronta para QA
+* Ou casos automatizados (ex: Cypress, Selenium)

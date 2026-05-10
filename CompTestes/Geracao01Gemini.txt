@@ -1,0 +1,54 @@
+Geração 01 - Gemini
+
+Para a estória de usuário "Criar conta no Sistema", a aplicação das técnicas de Particionamento de Equivalência (PE) e Análise de Valor Limite (AVL) permite uma cobertura eficiente dos requisitos de validação.
+
+Abaixo estão os casos de teste detalhados:
+
+### 1. Campo: Usuário
+* **Regras:** Alfanuméricos apenas (sem caracteres especiais), tamanho de 5 a 15 caracteres.
+* **Partições de Equivalência (PE):**
+    * Válida: Strings alfanuméricas entre 5 e 15 caracteres.
+    * Inválida 1: Strings com menos de 5 caracteres.
+    * Inválida 2: Strings com mais de 15 caracteres.
+    * Inválida 3: Strings contendo caracteres especiais (ex: @, #, !, .).
+
+| ID | Técnica | Entrada (Username) | Resultado Esperado | Classe/Limite Testado |
+| :--- | :--- | :--- | :--- | :--- |
+| CT01 | AVL | `A1b2C` | Sucesso | Limite Inferior (5 caracteres) |
+| CT02 | AVL | `Abcde1234567890` | Sucesso | Limite Superior (15 caracteres) |
+| CT03 | AVL | `Ab12` | Erro | Abaixo do limite (4 caracteres) |
+| CT04 | AVL | `Abcde12345678901` | Erro | Acima do limite (16 caracteres) |
+| CT05 | PE | `User@123` | Erro | Caractere especial não permitido |
+| CT06 | PE | `Aurin` | Sucesso | Valor médio/válido |
+
+---
+
+### 2. Campo: Senha
+* **Regras:** 8 a 15 caracteres; obrigatório: 1 Maiúscula, 1 Minúscula, 1 Número, 1 Especial.
+* **Partições de Equivalência (PE):**
+    * Válida: Atende a todos os critérios de composição e tamanho.
+    * Inválida (Tamanho): < 8 ou > 15 caracteres.
+    * Inválida (Composição): Faltando um dos quatro requisitos obrigatórios.
+
+| ID | Técnica | Entrada (Password) | Resultado Esperado | Motivo/Classe |
+| :--- | :--- | :--- | :--- | :--- |
+| CT07 | AVL | `Ab1!cdef` | Sucesso | Limite Inferior (8 caracteres) |
+| CT08 | AVL | `Ab1!cdefghij234` | Sucesso | Limite Superior (15 caracteres) |
+| CT09 | AVL | `Ab1!cde` | Erro | Tamanho insuficiente (7) |
+| CT10 | AVL | `Ab1!cdefghij2345` | Erro | Tamanho excedido (16) |
+| CT11 | PE | `senha123!` | Erro | Falta letra Maiúscula |
+| CT12 | PE | `SENHA123!` | Erro | Falta letra Minúscula |
+| CT13 | PE | `Senha!!!` | Erro | Falta Número |
+| CT14 | PE | `Senha123` | Erro | Falta Caractere Especial |
+
+---
+
+### 3. Matriz de Combinação (Casos Negativos)
+Para garantir a robustez, testamos o sistema quando um campo é válido e o outro não.
+
+| ID | Usuário (Input) | Senha (Input) | Resultado Esperado |
+| :--- | :--- | :--- | :--- |
+| CT15 | `Aurin2026` (Válido) | `12345` (Inválido) | Erro (Mensagem para Senha) |
+| CT16 | `Au!` (Inválido) | `Senha@123` (Válido) | Erro (Mensagem para Usuário) |
+
+**Dica de Implementação:** Ao realizar a Análise de Valor Limite, foque sempre nos pontos $n-1$, $n$ e $n+1$. Por exemplo, para o limite mínimo de 5 do usuário, testamos 4 (erro), 5 (sucesso) e 6 (sucesso). Isso garante que o operador lógico no código (ex: `>=` em vez de `>`) foi implementado corretamente.

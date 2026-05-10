@@ -1,0 +1,106 @@
+Geração 01 - Codekru
+
+1. Functional
+Positive Test Cases:
+Verify user can an account by entering a valid username (e.g., "user123") and a valid password (e.g "Password1!") and clicking the "Create Account" button.  Expected: User is redirected to the login page with a success message.
+    <> user can create an account with a username containing 15 alphanumeric (.g., "user123789012").br> : User is redirected to the login page with a success message.
+    Verify user can create an account a password that meets all criteria (e.g., "Valid1!") and clicking the "Create Account" button.  Expected: User is redirected to the login page with a success.
+    Verify user can create account with a username of exactly 5 characterse.g., "user1") and a valid password.  
+    Verify user can create an account with a password of exactly 15 characters (e.g., "ValidPassword1!") and a username <> Expected: is redirected to the login page with success message.
+ul>
+
+Negative Test Cases:
+
+    Verify user cannot create an account with a username shorter than 5 characters (.g "usr").  Expected: Error message indicating must be between 5 and 15 charactersli     Expected: Error message displays username must be between 5 and15 characters.
+    Verify user cannot create an account with a shorter than 8 characters (e.g.,Short1!"). <>  Error message displays indicating password must be between 8 and 15 characters.
+    <>Verify user create account with a longer 15 characters (e.g., "ThisPasswordIsTooLong1!"). bExpected: Error message displays indicating password must be 8 and15 characters.
+  user create account with a password missing special character (e.g "Password1"). b>Expected: Error displays password must contain least special character.
+
+
+ and Boundary Cases:
+
+    Verify user cannot create an account with a username that contains special characters (e.g., "@123").  Expected: Error message displays indicating username can only contain alphanumeric.
+     user cannot create an account a password that contains only numbers (e.g., "12345678!"). b>Expected: Error displays indicating password contain at least one letter.Verify user cannot create an account with a username that is empty.  Expected: Error message displays username is required.
+   li>Verify cannot an with a password is empty.  Expected: message indicating password is.
+    <> user cannot create an account with a containing spaces (e.g., "user name <> Expected: Error message displays indicating username only contain alphanumeric characters.
+
+
+2. API Testing
+Request Validationh4>
+
+    Verify API accepts a valid request with a username and password that meet all criteria.  Expected: API returns a201 status with a success message.
+     Expected: API returns an error indicating username is.
+    Verify API returns a 400 Bad Request when password is missing from the request.br Expected: API returns an error message indicating password is required.
+  API returns a 400 Request when username contains special characters.  <>Expected: API returns an error indicating username.
+     API a 400 Bad Request when password does not meet requirements.   API returns an error message indicating password must meet complexity requirementsli>
+
+
+Authentication & Authorization:
+>
+ Verify API allows access with valid credentials ( and password).  <>: returns a  OK status with user details.
+    Verify API returns a 401 Unauthorized when invalid credentials are provided.  Expectedb> API returns an error message indicating invalid credentials.
+ Verify API returns a403 Forbidden status attempting to access restricted resource without authorization. <> Expected:
+    Verify API returns a  Unauthorized status when credentials are provided.  Expected:
+    Verify API returns a  Unauthorized status expired credentials are used.  Expected: API returns an error message indicating credentials have expired.
+
+
+Response Validation:
+>
+    Verify API response contains the correct structure when a user is created successfully.  Expected: Response body contains user and success message.
+    Verify API response returns a 400 status code for invalid requests  Expected: Response body contains error message the issue.
+    Verify API response includes appropriate headers (Content-Type: application) for successful requests. Expected: Response headers include Content-Type as application/json.
+    Verify API returns a 500 Internal Error for unexpected server issues.  Expected: Response body contains a generic error message.
+    Verify API response handles null values gracefully in the request.br> : API returns a 400 Bad Request with an error message indicating required fieldsli>
+
+
+3./UX Testing
+4>Visual and Layout:
+
+    Verify the account creation form is displayed correctly on the.br> Expected: All fields (username, password) and buttons are visible and aligned.
+     Expected: Form elements maintain usability across all devices.
+ Verify the color contrast of the text and meets accessibility standards.  Expected: Contrast ratio is at least4.5:1 for text elements.
+     placeholder in input fields is clear and descriptive.  Expected: Placeholder text indicates the expected input format (e.g., "Enter username").li>
+    Verify indicators are displayed the account creation is being processed  Expected:
+
+
+Interaction and:
+    Verify user can click the "Create" button after filling in username password.   User is redirected to the login page with a success message.
+     <>Expected:
+    Verify the form resets correctly after a successful account creation.   All fields are cleared after redirection to the login page.
+   li>Verify user navigate to login page using a "Back to Login" link.  Expected: User is redirected to login page.
+ Verify tooltips are displayed when hovering over the password field to indicate complexity requirements. Expected: Tooltip shows requirements for the passwordli>
+
+
+4>Error Handling:
+
+    Verify user-friendly error messages displayed for invalid and password inputs.  Expected: Error are clear and provide guidance on how to correct the input.
+   li>Verify the system handles network errors gracefully during account creation.br Expected: User receives a message indicating a network issue occurred.
+    Verify session expiry notifications are displayed if the user is inactive for a period  Expected: User is prompted to log in again after session timeout.
+ Verify recovery mechanisms are in place for failed creation.  : User can creating the account after correcting errors.
+ Verify error are in format and tone across the application <> 
+
+
+4.-B and-Platform Testing
+
+    Verify the account creation form functions correctly in latest versions of Chrome. :
+    Verify account form correctly in Firefox  Expected: All work as intended without errorsli     Expected: All features work as intended without errorsli>
+     Expected: All features work as intended without errorsli>
+     : All features are accessible functional on mobile devices.
+
+
+5. Accessibility (WCAG 2.1 Compliance)
+
+    Verify navigation is functional for all form elements (username password, buttons). b>Expected: Users can navigate using Tab, Enter and keysli>
+    Verify screen reader by checking AR labels for all fields.  Expected:
+    Verify focus indicators are when navigating through the form using the keyboard.  Expected: Focus is clearly indicated on all interactive elements.
+    Verify color ratios meet accessibility standards for all text.  Expected: ratio is at least .5:1 for text and3:1 for UI components.
+     alternative text is provided for any images or icons in the form.  Expected: All images have descriptive alt for screen readers.
+
+
+6. Security Testing
+
+    Verify input sanitization to prevent XSS attacks on the and password fields  Expected: System does not any scripts entered in the fields.
+     SQL injection protection by attempting input SQL commands in the username field. <> Expected: System returns an message without executing any commands.
+    Verify secure password by checking that passwords are hashed before storage.  Expected:s not stored in plain text.
+    Verify data encryption in transit by checking that HTTPS is enforced for all.  Expected: All data transmitted is encrypted.
+    Verify session fixation prevention by ensuring that session IDs change upon login.  Expected: Session ID is different login compared to before.

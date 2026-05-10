@@ -1,0 +1,188 @@
+Geração 02 - ChatGPT
+
+Abaixo estão os casos de teste estruturados aplicando **Particionamento de Equivalência (PE)** e **Análise de Valor Limite (AVL)** para a estória informada.
+
+---
+
+# 🔹 1. Campo: Usuário
+
+## 📌 Regras
+
+* Apenas **alfanumérico (A–Z, a–z, 0–9)**
+* Tamanho: **5 a 15 caracteres**
+* Não permite caracteres especiais nem espaços
+
+---
+
+## ✅ Particionamento de Equivalência (PE)
+
+### 🟢 Classes válidas
+
+| ID      | Entrada                      | Resultado esperado |
+| ------- | ---------------------------- | ------------------ |
+| U-PE-01 | `user1`                      | Válido             |
+| U-PE-02 | `usuario123`                 | Válido             |
+| U-PE-03 | `abcde12345fghij` (15 chars) | Válido             |
+
+---
+
+### 🔴 Classes inválidas
+
+#### ❌ Menor que o mínimo
+
+| ID      | Entrada | Resultado |
+| ------- | ------- | --------- |
+| U-PE-04 | `abcd`  | Inválido  |
+
+#### ❌ Maior que o máximo
+
+| ID      | Entrada                 | Resultado |
+| ------- | ----------------------- | --------- |
+| U-PE-05 | `abcdefghijklmnop` (16) | Inválido  |
+
+#### ❌ Contém caracteres especiais
+
+| ID      | Entrada    | Resultado |
+| ------- | ---------- | --------- |
+| U-PE-06 | `user@123` | Inválido  |
+| U-PE-07 | `user#abc` | Inválido  |
+
+#### ❌ Contém espaço
+
+| ID      | Entrada    | Resultado |
+| ------- | ---------- | --------- |
+| U-PE-08 | `user 123` | Inválido  |
+
+---
+
+## 🔍 Análise de Valor Limite (AVL)
+
+| ID       | Entrada            | Tamanho | Resultado |
+| -------- | ------------------ | ------- | --------- |
+| U-AVL-01 | `abcd`             | 4       | Inválido  |
+| U-AVL-02 | `abcde`            | 5       | Válido    |
+| U-AVL-03 | `abcdefghijklmno`  | 15      | Válido    |
+| U-AVL-04 | `abcdefghijklmnop` | 16      | Inválido  |
+
+---
+
+# 🔹 2. Campo: Senha
+
+## 📌 Regras
+
+* Tamanho: **8 a 15 caracteres**
+* Deve conter:
+
+  * ≥1 letra maiúscula
+  * ≥1 letra minúscula
+  * ≥1 número
+  * ≥1 caractere especial
+
+---
+
+## ✅ Particionamento de Equivalência (PE)
+
+### 🟢 Classe válida
+
+| ID      | Entrada       | Resultado |
+| ------- | ------------- | --------- |
+| S-PE-01 | `Abcdef1@`    | Válido    |
+| S-PE-02 | `Senha123!`   | Válido    |
+| S-PE-03 | `Teste1234@A` | Válido    |
+
+---
+
+### 🔴 Classes inválidas
+
+#### ❌ Menor que 8 caracteres
+
+| ID      | Entrada  | Resultado |
+| ------- | -------- | --------- |
+| S-PE-04 | `Ab1@cd` | Inválido  |
+
+#### ❌ Maior que 15 caracteres
+
+| ID      | Entrada            | Resultado |
+| ------- | ------------------ | --------- |
+| S-PE-05 | `Abcdefghijklmn1@` | Inválido  |
+
+#### ❌ Sem letra maiúscula
+
+| ID      | Entrada    | Resultado |
+| ------- | ---------- | --------- |
+| S-PE-06 | `abcdef1@` | Inválido  |
+
+#### ❌ Sem letra minúscula
+
+| ID      | Entrada    | Resultado |
+| ------- | ---------- | --------- |
+| S-PE-07 | `ABCDEF1@` | Inválido  |
+
+#### ❌ Sem número
+
+| ID      | Entrada    | Resultado |
+| ------- | ---------- | --------- |
+| S-PE-08 | `Abcdefg@` | Inválido  |
+
+#### ❌ Sem caractere especial
+
+| ID      | Entrada    | Resultado |
+| ------- | ---------- | --------- |
+| S-PE-09 | `Abcdefg1` | Inválido  |
+
+#### ❌ Falha múltipla de regras
+
+| ID      | Entrada    | Resultado |
+| ------- | ---------- | --------- |
+| S-PE-10 | `abcdefg1` | Inválido  |
+
+---
+
+## 🔍 Análise de Valor Limite (AVL)
+
+| ID       | Entrada            | Tamanho | Resultado |
+| -------- | ------------------ | ------- | --------- |
+| S-AVL-01 | `Ab1@cde`          | 7       | Inválido  |
+| S-AVL-02 | `Ab1@cdef`         | 8       | Válido    |
+| S-AVL-03 | `Abcdefghij1@23`   | 15      | Válido    |
+| S-AVL-04 | `Abcdefghijk1@234` | 16      | Inválido  |
+
+---
+
+# 🔹 3. Casos de Teste Integrados (Usuário + Senha)
+
+| ID    | Usuário             | Senha              | Resultado esperado         |
+| ----- | ------------------- | ------------------ | -------------------------- |
+| CT-01 | `user123`           | `Abcdef1@`         | Sucesso                    |
+| CT-02 | `abcd`              | `Abcdef1@`         | Erro (usuário inválido)    |
+| CT-03 | `user@123`          | `Abcdef1@`         | Erro (usuário inválido)    |
+| CT-04 | `usuario1234567890` | `Abcdef1@`         | Erro (usuário inválido)    |
+| CT-05 | `user123`           | `abcdef1@`         | Erro (senha sem maiúscula) |
+| CT-06 | `user123`           | `ABCDEF1@`         | Erro (senha sem minúscula) |
+| CT-07 | `user123`           | `Abcdefg@`         | Erro (senha sem número)    |
+| CT-08 | `user123`           | `Abcdefg1`         | Erro (senha sem especial)  |
+| CT-09 | `user123`           | `Ab1@cd`           | Erro (senha curta)         |
+| CT-10 | `user123`           | `Abcdefghijk1@234` | Erro (senha longa)         |
+| CT-11 | `abcde`             | `Abcdef1@`         | Sucesso (limite inferior)  |
+| CT-12 | `abcdefghijklmno`   | `Abcdefghij1@23`   | Sucesso (limite superior)  |
+
+---
+
+# 🔹 4. Casos adicionais recomendados (não funcionais / borda real)
+
+| ID    | Cenário                           | Resultado esperado           |
+| ----- | --------------------------------- | ---------------------------- |
+| CT-13 | Usuário vazio                     | Erro                         |
+| CT-14 | Senha vazia                       | Erro                         |
+| CT-15 | Ambos vazios                      | Erro                         |
+| CT-16 | Usuário com espaços no início/fim | Erro ou trim (definir regra) |
+| CT-17 | Senha com espaços                 | Validar comportamento        |
+| CT-18 | Campos com copy/paste             | Funcionar corretamente       |
+
+---
+
+Se quiser, posso evoluir isso para:
+
+* ✅ **BDD (Gherkin)**
+* ✅ **Casos prontos para Jira/Xray**
+* ✅ **Automação (Cypress, Selenium, Playwright)**

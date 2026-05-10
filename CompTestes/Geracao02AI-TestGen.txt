@@ -1,0 +1,145 @@
+Geração 02 - AI-TesteGen
+
+CT01
+Positivo
+Criar conta com usuário alfanumérico válido e senha válida
+
+Dados de Entrada
+Usuário: 'user123', Senha: 'Senha@123'
+Resultado Esperado
+Conta criada com sucesso
+
+CT02
+Negativo
+Criar conta com usuário contendo caracteres especiais
+
+Dados de Entrada
+Usuário: 'user@123', Senha: 'Senha@123'
+Resultado Esperado
+Erro: Usuário não pode conter caracteres especiais
+
+CT03
+Negativo
+Criar conta com usuário com tamanho fora do intervalo permitido
+
+Dados de Entrada
+Usuário: 'user', Senha: 'Senha@123'
+Resultado Esperado
+Erro: Usuário deve ter entre 5 e 15 caracteres
+
+CT04
+Negativo
+Criar conta com senha com tamanho fora do intervalo permitido
+
+Dados de Entrada
+Usuário: 'user123', Senha: 'S@123'
+Resultado Esperado
+Erro: Senha deve ter entre 8 e 15 caracteres
+
+CT05
+Negativo
+Criar conta com senha sem letra maiúscula
+
+Dados de Entrada
+Usuário: 'user123', Senha: 'senha@123'
+Resultado Esperado
+Erro: Senha deve conter ao menos uma letra maiúscula
+
+CT06
+Negativo
+Criar conta com senha sem letra minúscula
+
+Dados de Entrada
+Usuário: 'user123', Senha: 'SENHA@123'
+Resultado Esperado
+Erro: Senha deve conter ao menos uma letra minúscula
+
+CT07
+Negativo
+Criar conta com senha sem número
+
+Dados de Entrada
+Usuário: 'user123', Senha: 'Senha@abc'
+Resultado Esperado
+Erro: Senha deve conter ao menos um número
+
+CT08
+Negativo
+Criar conta com senha sem caractere especial
+
+Dados de Entrada
+Usuário: 'user123', Senha: 'Senha123'
+Resultado Esperado
+Erro: Senha deve conter ao menos um caractere especial
+
+CT09
+Positivo
+Criar conta com usuário no limite mínimo válido (5 caracteres)
+
+Dados de Entrada
+Usuário: 'abcde', Senha: 'Senha@123'
+Resultado Esperado
+Conta criada com sucesso
+
+CT10
+Negativo
+Criar conta com usuário abaixo do limite mínimo (4 caracteres)
+
+Dados de Entrada
+Usuário: 'abcd', Senha: 'Senha@123'
+Resultado Esperado
+Erro: Usuário deve ter no mínimo 5 caracteres
+
+CT11
+Positivo
+Criar conta com usuário no limite máximo válido (15 caracteres)
+
+Dados de Entrada
+Usuário: 'usuarioTeste1234', Senha: 'Senha@123'
+Resultado Esperado
+Conta criada com sucesso
+
+CT12
+Negativo
+Criar conta com usuário acima do limite máximo (16 caracteres)
+
+Dados de Entrada
+Usuário: 'usuarioTeste12345', Senha: 'Senha@123'
+Resultado Esperado
+Erro: Usuário deve ter no máximo 15 caracteres
+
+CT13
+Positivo
+Criar conta com senha no limite mínimo válido (8 caracteres)
+
+Dados de Entrada
+Usuário: 'user123', Senha: 'S@123abc'
+Resultado Esperado
+Conta criada com sucesso
+
+CT14
+Negativo
+Criar conta com senha abaixo do limite mínimo (7 caracteres)
+
+Dados de Entrada
+Usuário: 'user123', Senha: 'S@123ab'
+Resultado Esperado
+Erro: Senha deve ter no mínimo 8 caracteres
+
+CT15
+Positivo
+Criar conta com senha no limite máximo válido (15 caracteres)
+
+Dados de Entrada
+Usuário: 'user123', Senha: 'S@123456789abcd'
+Resultado Esperado
+Conta criada com sucesso
+
+CT16
+Negativo
+Criar conta com senha acima do limite máximo (16 caracteres)
+
+Dados de Entrada
+Usuário: 'user123', Senha: 'S@123456789abcde'
+Resultado Esperado
+Erro: Senha deve ter no máximo 15 caracteres

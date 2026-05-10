@@ -1,0 +1,243 @@
+"use client";
+import { useState } from "react";
+
+export default function Home() {
+  const [estoria, setEstoria] = useState("");
+  const [dados, setDados] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const gerarTestes = async () => {
+    if (!estoria.trim()) return;
+    setLoading(true);
+    try {
+      const res = await fetch("http://localhost:8000/api/generate-tests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estoria }),
+      });
+      const json = await res.json();
+      setDados(json);
+    } catch (error) {
+      console.error("Erro na conexão:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#f8fafc] font-sans text-slate-900">
+      <nav className="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div className="max-w-[1600px] mx-auto px-6 h-16 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold">A</span>
+            </div>
+            <h1 className="text-xl font-extrabold tracking-tight text-slate-800">
+              AI-TestGen{" "}
+              <span className="text-indigo-600 font-medium text-sm">
+                Dashboard
+              </span>
+            </h1>
+          </div>
+          <button className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-4 py-2 rounded-lg text-sm font-bold transition-all border border-indigo-100 flex items-center gap-2">
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            Exportar Resultados
+          </button>
+        </div>
+      </nav>
+
+      <main className="p-8 max-w-[1600px] mx-auto space-y-8">
+        {/* Card de Entrada de Dados */}
+        <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="p-6 div-requisitos-sistema">
+            <div className="flex items-center gap-2 mb-4 text-slate-500">
+              <svg
+                className="w-7 h-7"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+              <h3 className="font-semibold uppercase tracking-wider text-xs">
+                Requisitos do Sistema
+              </h3>
+            </div>
+            <textarea
+              className="input-estoria-usuario w-full p-4     bg-slate-50 border border-slate-200 rounded-x focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none h-32 text-slate-700 transition-all resize-none"
+              placeholder="Descreva a Estória de Usuário ou o Problema de Negócio..."
+              value={estoria}
+              onChange={(e) => setEstoria(e.target.value)}
+            />
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={gerarTestes}
+                disabled={loading || !estoria.trim()}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3 rounded-xl font-bold disabled:bg-slate-300 transition-all shadow-lg shadow-indigo-200 flex items-center gap-3"
+              >
+                {loading && (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                )}
+                {loading ? "Processando IA..." : "Gerar Casos de Teste"}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {dados && dados.casos_de_teste?.length === 0 && (
+          <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-xl mt-6">
+            <p className="text-amber-700 font-bold">Aviso de Relevância:</p>
+            <p className="text-amber-600">
+              {dados.erro_validacao ||
+                "A entrada fornecida não é suficiente para gerar casos de teste válidos."}
+            </p>
+          </div>
+        )}
+
+        {dados && dados.casos_de_teste?.length != 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in slide-in-from-bottom-4 duration-700">
+            {/* COLUNA: CARDS DETALHADOS */}
+            <div className="lg:col-span-5 space-y-6">
+              <div className="flex items-center justify-between px-2">
+                <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                  <span className="w-1 h-6 bg-indigo-600 rounded-full"></span>
+                  Visualização Detalhada
+                </h2>
+                <span className="text-xs font-medium text-slate-400 font-mono">
+                  {dados.casos_de_teste?.length} cenários identificados
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                {dados.casos_de_teste?.map((teste, index) => (
+                  <div
+                    key={index}
+                    className="bg-white rounded-2xl border border-slate-200 hover:border-indigo-300 transition-all group shadow-sm"
+                  >
+                    <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 rounded-t-2xl">
+                      <span className="font-mono font-bold text-indigo-600 text-sm">
+                        {teste.id}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest ${teste.tipo === "Positivo" ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}
+                      >
+                        {teste.tipo}
+                      </span>
+                    </div>
+                    <div className="p-5 space-y-4">
+                      <p className="text-slate-800 font-bold leading-tight group-hover:text-indigo-900 transition-colors">
+                        {teste.descricao}
+                      </p>
+                      <div className="grid grid-cols-1 gap-3">
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                            Dados de Entrada
+                          </span>
+                          <code className="text-sm text-slate-700 font-mono break-all">
+                            {teste.dados_entrada}
+                          </code>
+                        </div>
+                        <div className="bg-indigo-50/30 p-3 rounded-xl border border-indigo-50">
+                          <span className="text-[10px] uppercase font-bold text-indigo-400 block mb-1">
+                            Resultado Esperado
+                          </span>
+                          <p className="text-sm text-indigo-900 leading-relaxed font-medium">
+                            {teste.resultado_esperado}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* COLUNA: TABELA DE RESUMO */}
+            <div className="lg:col-span-7 space-y-6">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2 px-2">
+                <span className="w-1 h-6 bg-slate-400 rounded-full"></span>
+                Visão Executiva
+              </h2>
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-500">
+                      <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">
+                        ID
+                      </th>
+                      <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">
+                        Título do Cenário
+                      </th>
+                      <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider">
+                        Tipo
+                      </th>
+                      <th className="px-6 py-4 text-[11px] font-bold uppercase tracking-wider text-center">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {dados.casos_de_teste?.map((teste, index) => (
+                      <tr
+                        key={index}
+                        className="hover:bg-slate-50/80 transition-colors"
+                      >
+                        <td className="px-6 py-4 font-mono text-xs font-bold text-indigo-600">
+                          {teste.id}
+                        </td>
+                        <td className="px-6 py-4">
+                          <p className="text-sm text-slate-700 font-medium line-clamp-1">
+                            {teste.descricao}
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            {teste.classe_equivalencia}
+                          </p>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span
+                            className={`w-2 h-2 rounded-full inline-block mr-2 ${teste.tipo === "Positivo" ? "bg-emerald-500" : "bg-rose-500"}`}
+                          ></span>
+                          <span className="text-xs font-semibold text-slate-600">
+                            {teste.tipo}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-2 py-1 rounded-md border border-emerald-100">
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            <span className="text-[10px] font-bold uppercase">
+                              Ready
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
