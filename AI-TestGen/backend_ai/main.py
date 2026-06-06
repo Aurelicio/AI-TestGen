@@ -24,10 +24,13 @@ class ListaTestes(BaseModel):
 
 USAR_PROMPT_CHAINING = True
 
-modelo_llm = "gemma-4-31b-it"
+modelo_llm = "gemma-4-31b-it"  
 
 load_dotenv()
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+api_key = os.getenv("GOOGLE_API_KEY")
+if not api_key:
+    raise ValueError("ERRO: GOOGLE_API_KEY não foi definida no arquivo .env")
+client = genai.Client(api_key=api_key)
 app = FastAPI()
 
 
@@ -45,6 +48,7 @@ async def call_llm_with_retry(prompt: str, max_retries: int = 3, inicial_delay: 
     for tentativa in range(max_retries):
         try:
             print(f"[LLM CALL] Tentativa {tentativa + 1}/{max_retries}")
+            print(f"[LLM DEBUG] Modelo: {modelo_llm}")
             
             resposta = client.models.generate_content(
                 model=modelo_llm,
@@ -57,6 +61,7 @@ async def call_llm_with_retry(prompt: str, max_retries: int = 3, inicial_delay: 
                 return resposta
             else:
                 print(f"[LLM WARNING] Resposta vazia ou inválida na tentativa {tentativa + 1}")
+                print(f"[LLM DEBUG] Resposta obj: {resposta}")
                 if tentativa < max_retries - 1:
                     delay = inicial_delay * (2 ** tentativa)
                     print(f"[LLM RETRY] Aguardando {delay}s antes de tentar novamente...")
@@ -64,7 +69,9 @@ async def call_llm_with_retry(prompt: str, max_retries: int = 3, inicial_delay: 
                     
         except Exception as e:
             erro_str = str(e)
-            print(f"[LLM ERROR] Tentativa {tentativa + 1} falhou com erro: {erro_str}")
+            erro_tipo = type(e).__name__
+            print(f"[LLM ERROR] Tentativa {tentativa + 1} falhou com erro: {erro_tipo} - {erro_str}")
+            print(f"[LLM DEBUG] Exception completa: {repr(e)}")
             
             # Se for erro 500 ou similar, tenta novamente
             if tentativa < max_retries - 1:
@@ -140,10 +147,17 @@ Template esperado:
            - "problema": O texto declara a ação que o ator deseja realizar? (ex: "desejo cadastrar", "quero acessar").
            - "beneficio": O texto declara o porquê ou valor de negócio final? (ex: "para poder...", "com o objetivo de...").
            - "detalhamento": Possui contexto adicional ou regras descritivas?
-           - "criterios_aceitacao_mensuraveis": Possui regras claras contendo limites numéricos, intervalos ou tamanhos verificáveis?
+           - "criterios_aceitacao": Possui critérios de aceitação CLAROS e TESTÁVEIS? (numéricos ou descritivos)
+           - "criterios_aceitacao_mensuraveis": Possui regras com limites numéricos, intervalos ou tamanhos verificáveis? (pode estar ausente mesmo que a estória seja válida)
 
         2. REGRA DE STATUS:
-           Se QUALQUER item do checklist acima for marcado como "ausente", o "status" DEVE obrigatoriamente ser "invalido".
+           A estória é "valido" SE tiver: titulo, stakeholder, problema, beneficio, detalhamento E criterios_aceitacao (não pode ser vago/subjetivo).
+           A estória é "invalido" SE: faltarem items estruturais OR os critérios de aceitação forem muito subjetivos/intestáveis.
+           O campo "criterios_aceitacao_mensuraveis" é informativo (pode estar ausente mesmo que a estória seja válida).
+
+        3. DETERMINAÇÃO DA TÉCNICA:
+           - Se "criterios_aceitacao_mensuraveis" = "presente": usar "tecnica_aplicada": "Particionamento de Equivalência + Análise de Valor Limite"
+           - Se "criterios_aceitacao_mensuraveis" = "ausente" mas "criterios_aceitacao" = "presente": usar "tecnica_aplicada": "Testes Descritivos Baseados em Critérios (sem análise de valor limite)"
 
         Responda APENAS com um JSON puro neste formato:
         {{
@@ -153,12 +167,14 @@ Template esperado:
                 "problema": "presente" ou "ausente",
                 "beneficio": "presente" ou "ausente",
                 "detalhamento": "presente" ou "ausente",
+                "criterios_aceitacao": "presente" ou "ausente",
                 "criterios_aceitacao_mensuraveis": "presente" ou "ausente"
             }},
             "status": "valido" ou "invalido",
-            "mensagem_erro": "Se invalido, preencha com 'Falha estrutural'.",
-            "variaveis_identificadas": ["lista das variáveis numéricas/tamanhos encontrados"],
-            "analise_classes": "Detalhe do PE e AVL baseado nos exemplos, apenas se válido."
+            "mensagem_erro": "Se invalido, descreva brevemente o motivo.",
+            "variaveis_identificadas": ["lista das variáveis numéricas/tamanhos encontrados, vazio se não houver"],
+            "tecnica_aplicada": "Particionamento de Equivalência + Análise de Valor Limite" ou "Testes Descritivos Baseados em Critérios (sem análise de valor limite)" ou "Nenhuma",
+            "analise_classes": "Detalhe da análise de classes e técnicas aplicadas, baseado nos exemplos."
         }}
         """
 
@@ -172,7 +188,7 @@ Template esperado:
         try:
             dados_analise = json.loads(texto_etapa1)
             
-            # Montagem da mensagem de erro
+            # Montagem da mensagem de erro (APENAS se status for invalido)
             if dados_analise.get("status") == "invalido":
                 checklist = dados_analise.get("auditoria_checklist", {})
                 
@@ -183,6 +199,7 @@ Template esperado:
                     "problema": "'Problema (Eu quero...)'",
                     "beneficio": "'Benefício (Para...)'",
                     "detalhamento": "'Detalhamento'",
+                    "criterios_aceitacao": "'Critérios de Aceitação'",
                     "criterios_aceitacao_mensuraveis": "'Critérios de Aceitação (com limites mensuráveis)'"
                 }
                 
@@ -190,8 +207,12 @@ Template esperado:
                 itens_ausentes = [mapa_nomes.get(k, k) for k, v in checklist.items() if v == "ausente"]
                 texto_ausentes = ", ".join(itens_ausentes) if itens_ausentes else "Itens obrigatórios não detectados"
                 
-                # Template fixo concatenado com as falhas
-                mensagem_fixa = f"""A estória está incompleta. É obrigatório o preenchimento/correção dos seguintes itens: {texto_ausentes}.
+                # Mensagem da IA + template esperado
+                mensagem_ia = dados_analise.get("mensagem_erro", "")
+                mensagem_fixa = f"""A estória está incompleta ou possui critérios não testáveis.
+
+Motivo: {mensagem_ia}
+Itens faltando/inválidos: {texto_ausentes}.
 
 Template esperado:
 
@@ -201,18 +222,19 @@ Template esperado:
 **Para que** [benefício].
 **Detalhamento:** [Informações adicionais]
 **Critérios de Aceitação:**
-- Regra 1: [Com limite numérico ou tamanho mensurável]
-- Regra 2: [Com limite numérico ou tamanho mensurável]
+- Regra 1: [Critério testável, com ou sem limite numérico]
+- Regra 2: [Critério testável, com ou sem limite numérico]
 ..."""
 
                 return {
                     "variaveis_identificadas": [],
                     "casos_de_teste": [],
+                    "tecnica_aplicada": "Nenhuma",
                     "erro_validacao": mensagem_fixa
                 }
                 
         except json.JSONDecodeError:
-            dados_analise = {"variaveis_identificadas": [], "analise_classes": texto_etapa1}
+            dados_analise = {"variaveis_identificadas": [], "analise_classes": texto_etapa1, "tecnica_aplicada": "Nenhuma"}
 
         # ETAPA 2: Montagem dos Casos de Teste
 
@@ -220,19 +242,30 @@ Template esperado:
         Atue como Analista de QA.
         
         Estória Original: "{conteudo_limpo}"
-        Análise Prévia de Classes (PE e AVL): {json.dumps(dados_analise.get("analise_classes", ""))}
+        Técnica Aplicada: {json.dumps(dados_analise.get("tecnica_aplicada", "Nenhuma"))}
+        Análise Prévia: {json.dumps(dados_analise.get("analise_classes", ""))}
 
-        Com base estritamente na Análise Prévia, gere os Casos de Teste. 
-        Você DEVE criar Casos de Teste englobando os valores limites (Limite exato, Limite-1, Limite+1) e classes válidas/inválidas que foram documentadas na análise prévia.
+        INSTRUÇÕES ESPECÍFICAS:
+        
+        1. SE a técnica for "Particionamento de Equivalência + Análise de Valor Limite":
+           - Crie Casos de Teste englobando os valores limites (Limite exato, Limite-1, Limite+1)
+           - Inclua classes válidas e inválidas conforme documentado na análise prévia
+           - Cada limite numérico deve ter testes para: valor limite inferior, inferior-1, superior, superior+1
+        
+        2. SE a técnica for "Testes Descritivos Baseados em Critérios":
+           - Crie Casos de Teste derivados dos critérios de aceitação descritivos
+           - Mapear cenários positivos (que atendem aos critérios) e negativos (que violam os critérios)
+           - Não aplique análise de valor limite (critérios não têm valores numéricos mensuráveis)
 
         Responda ESTRITAMENTE com o JSON no formato abaixo, sem textos explicativos:
         {{
             "variaveis_identificadas": {json.dumps(dados_analise.get("variaveis_identificadas", []))},
+            "tecnica_aplicada": "{dados_analise.get('tecnica_aplicada', 'Nenhuma')}",
             "casos_de_teste": [
                 {{
                     "id": "CT01",
                     "descricao": "string explicativa",
-                    "classe_equivalencia": "Ex: Valor Limite Inferior Válido",
+                    "classe_equivalencia": "Ex: Valor Limite Inferior Válido ou Cenário Positivo com Alfanumérico",
                     "dados_entrada": "O valor exato a ser inserido",
                     "resultado_esperado": "Comportamento esperado do sistema",
                     "tipo": "Positivo ou Negativo"
@@ -256,6 +289,8 @@ Template esperado:
                 dados_saida["variaveis_identificadas"] = dados_analise.get("variaveis_identificadas", [])
             if "casos_de_teste" not in dados_saida: 
                 dados_saida["casos_de_teste"] = []
+            if "tecnica_aplicada" not in dados_saida:
+                dados_saida["tecnica_aplicada"] = dados_analise.get("tecnica_aplicada", "Nenhuma")
                 
             return dados_saida
 
@@ -263,6 +298,7 @@ Template esperado:
             return {
                 "variaveis_identificadas": [],
                 "casos_de_teste": [],
+                "tecnica_aplicada": dados_analise.get("tecnica_aplicada", "Nenhuma"),
                 "erro_validacao": "Erro de processamento na Etapa de Síntese."
             }
 
@@ -289,7 +325,7 @@ async def _gerar_tests_sem_prompt_chaining(request: EstoriaRequest):
     """
     Abordagem SEM prompt chaining: uma requisição direta e simples.
     SEM treinamento prévio, SEM exemplos (few shot), SEM etapas cognitivas.
-    Apenas: estória → geração de casos de teste no formato esperado.
+    Apenas: estória e geração de casos de teste no formato esperado.
     
     Não exibe as 4 etapas na interface. Apenas processamento direto.
     """
@@ -414,7 +450,7 @@ Template esperado:
                 return
 
             # ETAPA 1: VALIDAÇÃO DA ESTRUTURA DA ESTÓRIA
-            yield f'data: {json.dumps({"tipo": "etapa_inicio", "etapa": 1, "titulo": "Validação da Estrutura da Estória", "descricao": "Verificando se a estória contém todos os componentes obrigatórios (Título, Stakeholder, Problema, Benefício, Detalhamento, Critérios Mensuráveis)...", "percentual": 0})}\n\n'
+            yield f'data: {json.dumps({"tipo": "etapa_inicio", "etapa": 1, "titulo": "Validação da Estrutura da Estória", "descricao": "Verificando se a estória contém todos os componentes obrigatórios (Título, Stakeholder, Problema, Benefício, Detalhamento, Critérios Testáveis)...", "percentual": 0})}\n\n'
 
             prompt_etapa1 = f"""
         {treinamento_qa}
@@ -431,10 +467,17 @@ Template esperado:
            - "problema": O texto declara a ação que o ator deseja realizar? (ex: "desejo cadastrar", "quero acessar").
            - "beneficio": O texto declara o porquê ou valor de negócio final? (ex: "para poder...", "com o objetivo de...").
            - "detalhamento": Possui contexto adicional ou regras descritivas?
-           - "criterios_aceitacao_mensuraveis": Possui regras claras contendo limites numéricos, intervalos ou tamanhos verificáveis?
+           - "criterios_aceitacao": Possui critérios de aceitação CLAROS e TESTÁVEIS? (numéricos ou descritivos)
+           - "criterios_aceitacao_mensuraveis": Possui regras com limites numéricos, intervalos ou tamanhos verificáveis? (pode estar ausente mesmo que a estória seja válida)
 
         2. REGRA DE STATUS:
-           Se QUALQUER item do checklist acima for marcado como "ausente", o "status" DEVE obrigatoriamente ser "invalido".
+           A estória é "valido" SE tiver: titulo, stakeholder, problema, beneficio, detalhamento E criterios_aceitacao (não pode ser vago/subjetivo).
+           A estória é "invalido" SE: faltarem items estruturais OR os critérios de aceitação forem muito subjetivos/intestáveis.
+           O campo "criterios_aceitacao_mensuraveis" é informativo (pode estar ausente mesmo que a estória seja válida).
+
+        3. DETERMINAÇÃO DA TÉCNICA:
+           - Se "criterios_aceitacao_mensuraveis" = "presente": usar "tecnica_aplicada": "Particionamento de Equivalência + Análise de Valor Limite"
+           - Se "criterios_aceitacao_mensuraveis" = "ausente" mas "criterios_aceitacao" = "presente": usar "tecnica_aplicada": "Testes Descritivos Baseados em Critérios (sem análise de valor limite)"
 
         Responda APENAS com um JSON puro neste formato:
         {{
@@ -444,12 +487,14 @@ Template esperado:
                 "problema": "presente" ou "ausente",
                 "beneficio": "presente" ou "ausente",
                 "detalhamento": "presente" ou "ausente",
+                "criterios_aceitacao": "presente" ou "ausente",
                 "criterios_aceitacao_mensuraveis": "presente" ou "ausente"
             }},
             "status": "valido" ou "invalido",
-            "mensagem_erro": "Se invalido, preencha com 'Falha estrutural'.",
-            "variaveis_identificadas": ["lista das variáveis numéricas/tamanhos encontrados"],
-            "analise_classes": "Detalhe do PE e AVL baseado nos exemplos, apenas se válido."
+            "mensagem_erro": "Se invalido, descreva brevemente o motivo.",
+            "variaveis_identificadas": ["lista das variáveis numéricas/tamanhos encontrados, vazio se não houver"],
+            "tecnica_aplicada": "Particionamento de Equivalência + Análise de Valor Limite" ou "Testes Descritivos Baseados em Critérios (sem análise de valor limite)" ou "Nenhuma",
+            "analise_classes": "Detalhe da análise de classes e técnicas aplicadas, baseado nos exemplos."
         }}
         """
 
@@ -466,12 +511,12 @@ Template esperado:
                 
                 # Envia resultado da Etapa 1
                 checklist_resumo = {k: v for k, v in dados_analise.get("auditoria_checklist", {}).items()}
-                yield f'data: {json.dumps({"tipo": "etapa_resultado", "etapa": 1, "percentual": 25, "checklist": checklist_resumo, "status": dados_analise.get("status", "invalido")})}\n\n'
+                yield f'data: {json.dumps({"tipo": "etapa_resultado", "etapa": 1, "percentual": 25, "checklist": checklist_resumo, "status": dados_analise.get("status", "invalido"), "tecnica_aplicada": dados_analise.get("tecnica_aplicada", "Nenhuma")})}\n\n'
                 
                 # Atraso de 2 segundos para percepção visual de progresso
                 await asyncio.sleep(2)
                 
-                # Verificação de status
+                # Verificação de status (APENAS se invalido)
                 if dados_analise.get("status") == "invalido":
                     checklist = dados_analise.get("auditoria_checklist", {})
                     
@@ -481,13 +526,18 @@ Template esperado:
                         "problema": "'Problema (Eu quero...)'",
                         "beneficio": "'Benefício (Para...)'",
                         "detalhamento": "'Detalhamento'",
+                        "criterios_aceitacao": "'Critérios de Aceitação'",
                         "criterios_aceitacao_mensuraveis": "'Critérios de Aceitação (com limites mensuráveis)'"
                     }
                     
                     itens_ausentes = [mapa_nomes.get(k, k) for k, v in checklist.items() if v == "ausente"]
                     texto_ausentes = ", ".join(itens_ausentes) if itens_ausentes else "Itens obrigatórios não detectados"
                     
-                    mensagem_erro = f"""A estória está incompleta. É obrigatório o preenchimento/correção dos seguintes itens: {texto_ausentes}.
+                    mensagem_ia = dados_analise.get("mensagem_erro", "")
+                    mensagem_erro = f"""A estória está incompleta ou possui critérios não testáveis.
+
+Motivo: {mensagem_ia}
+Itens faltando/inválidos: {texto_ausentes}.
 
 Template esperado:
 
@@ -497,30 +547,25 @@ Template esperado:
 **Para que** [benefício].
 **Detalhamento:** [Informações adicionais]
 **Critérios de Aceitação:**
-- Regra 1: [Com limite numérico ou tamanho mensurável]
-- Regra 2: [Com limite numérico ou tamanho mensurável]
+- Regra 1: [Critério testável, com ou sem limite numérico]
+- Regra 2: [Critério testável, com ou sem limite numérico]
 ..."""
                     
-                    yield f'data: {json.dumps({"tipo": "validacao_falhou", "mensagem": mensagem_erro})}\n\n'
+                    yield f'data: {json.dumps({"tipo": "validacao_falhou", "mensagem": mensagem_erro, "tecnica_aplicada": "Nenhuma"})}\n\n'
                     return
                     
             except json.JSONDecodeError:
                 dados_analise = {"variaveis_identificadas": [], "analise_classes": texto_etapa1}
 
-            # ETAPA 2: APLICAÇÃO DA TÉCNICA FEW SHOT
-            yield f'data: {json.dumps({"tipo": "etapa_inicio", "etapa": 2, "titulo": "Aplicação da Técnica Few Shot", "descricao": "Treinando o modelo com exemplos de Particionamento de Equivalência (PE) e Análise de Valor Limite (AVL) para compreender as regras da estória...", "percentual": 25})}\n\n'
+            # ETAPA 2: ANÁLISE ADAPTATIVA (baseada na técnica aplicada)
+            yield f'data: {json.dumps({"tipo": "etapa_inicio", "etapa": 2, "titulo": "Análise", "descricao": f"Analisando a estória conforme a técnica: {dados_analise.get('tecnica_aplicada', 'Nenhuma')}...", "percentual": 25})}\n\n'
 
-            # O Few Shot é feito através do arquivo de treinamento que já foi carregado
-            # Aqui apenas é confirmado que o modelo recebeu o treinamento
-            yield f'data: {json.dumps({"tipo": "etapa_resultado", "etapa": 2, "percentual": 50, "tecnicas_aplicadas": ["Few Shot Learning", "In-Context Learning", "Constraint-Based Reasoning"]})}\n\n'
+            # Verifica qual técnica foi aplicada
+            tecnica_aplicada = dados_analise.get("tecnica_aplicada", "Nenhuma")
             
-            # Atraso de 2 segundos para percepção visual de progresso
-            await asyncio.sleep(2)
-
-            # ETAPA 3: IDENTIFICAÇÃO DE CLASSES E REGRAS
-            yield f'data: {json.dumps({"tipo": "etapa_inicio", "etapa": 3, "titulo": "Identificação de Classes de Equivalência e Regras", "descricao": "Analisando a estória para identificar as classes de equivalência válidas, inválidas e os valores limites conforme as técnicas de PE e AVL...", "percentual": 50})}\n\n'
-
-            prompt_etapa3 = f"""
+            if tecnica_aplicada == "Particionamento de Equivalência + Análise de Valor Limite":
+                # Faz análise de PE e AVL
+                prompt_etapa2 = f"""
         Você é um especialista em Engenharia de Testes com domínio em Particionamento de Equivalência e Análise de Valor Limite.
         
         Estória Original: "{conteudo_limpo}"
@@ -581,51 +626,115 @@ Template esperado:
             ]
         }}
         """
+            else:
+                # Faz análise de critérios descritivos (SEM PE e AVL)
+                prompt_etapa2 = f"""
+        Você é um Analista de QA especialista em testes descritivos.
+        
+        Estória Original: "{conteudo_limpo}"
+        
+        TAREFA: Com base na estória, identifique:
+        
+        1. CRITÉRIOS TESTÁVEIS (descritivos):
+           - Quais são os critérios de aceitação mencionados?
+           - Para cada critério, identifique cenários POSITIVOS (que atendem) e NEGATIVOS (que violam)
+           - Liste cada cenário com descrição clara
+           
+        2. VARIÁVEIS ENVOLVIDAS:
+           - Quais são as variáveis/campos mencionados?
+           - Quais são os tipos (texto, seleção, etc)?
+           - Quais são as restrições (caracteres permitidos, obrigatoriedade, etc)?
+           
+        3. REGRAS IDENTIFICADAS:
+           - Lista todas as regras de negócio/restrições mencionadas na estória
+           - Para cada regra, indique: tipo, descrição
 
+        Responda APENAS com JSON puro neste formato:
+        {{
+            "criterios_descritivos": [
+                {{
+                    "numero": 1,
+                    "criterio": "Descrição do critério",
+                    "cenarios_positivos": ["Cenário 1 que atende o critério", "Cenário 2 que atende o critério"],
+                    "cenarios_negativos": ["Cenário 1 que viola o critério", "Cenário 2 que viola o critério"]
+                }}
+            ],
+            "variaveis": [
+                {{
+                    "nome": "Nome da variável",
+                    "tipo": "Tipo (texto, número, seleção, etc)",
+                    "restricoes": "Restrições mencionadas"
+                }}
+            ],
+            "regras_identificadas": [
+                {{
+                    "numero": 1,
+                    "descricao": "Descrição da regra",
+                    "tipo": "Obrigatória/Restrição/Validação"
+                }}
+            ]
+        }}
+        """
+
+            # Executa a análise de etapa 2
             try:
-                resposta_etapa3 = await call_llm_with_retry(prompt_etapa3, max_retries=3, inicial_delay=2)
+                resposta_etapa2 = await call_llm_with_retry(prompt_etapa2, max_retries=3, inicial_delay=2)
                 
-                if resposta_etapa3 is None:
-                    yield f'data: {json.dumps({"tipo": "erro", "mensagem": "Falha na Etapa 3 (Classes e Limites) após múltiplas tentativas"})}\n\n'
+                if resposta_etapa2 is None:
+                    yield f'data: {json.dumps({"tipo": "erro", "mensagem": "Falha na Etapa 2 (Análise) após múltiplas tentativas"})}\n\n'
                     return
                 
-                texto_etapa3 = resposta_etapa3.text.replace("```json", "").replace("```", "").strip()
+                texto_etapa2 = resposta_etapa2.text.replace("```json", "").replace("```", "").strip()
                 
-                analise_classes = json.loads(texto_etapa3)
+                analise_etapa2 = json.loads(texto_etapa2)
             except json.JSONDecodeError:
-                analise_classes = {
-                    "classes_equivalencia": {"validas": [], "invalidas": []},
-                    "valores_limites": [],
-                    "regras_identificadas": []
-                }
+                if tecnica_aplicada == "Particionamento de Equivalência + Análise de Valor Limite":
+                    analise_etapa2 = {
+                        "classes_equivalencia": {"validas": [], "invalidas": []},
+                        "valores_limites": [],
+                        "regras_identificadas": []
+                    }
+                else:
+                    analise_etapa2 = {
+                        "criterios_descritivos": [],
+                        "variaveis": [],
+                        "regras_identificadas": []
+                    }
             except Exception as e:
-                print(f"[ETAPA3 ERROR] Erro na Etapa 3: {e}")
-                yield f'data: {json.dumps({"tipo": "erro", "mensagem": f"Erro na Etapa 3: {str(e)[:200]}"})}\n\n'
+                print(f"[ETAPA2 ERROR] Erro na Etapa 2: {e}")
+                yield f'data: {json.dumps({"tipo": "erro", "mensagem": f"Erro na Etapa 2: {str(e)[:200]}"})}\n\n'
                 return
 
-            # Conta regras e classes identificadas
-            qtd_classes_validas = len(analise_classes.get("classes_equivalencia", {}).get("validas", []))
-            qtd_classes_invalidas = len(analise_classes.get("classes_equivalencia", {}).get("invalidas", []))
-            qtd_regras = len(analise_classes.get("regras_identificadas", []))
-            
-            yield f'data: {json.dumps({"tipo": "etapa_resultado", "etapa": 3, "percentual": 75, "classes_validas": qtd_classes_validas, "classes_invalidas": qtd_classes_invalidas, "regras": qtd_regras})}\n\n'
+            # Envia resultado da Etapa 2
+            if tecnica_aplicada == "Particionamento de Equivalência + Análise de Valor Limite":
+                qtd_classes_validas = len(analise_etapa2.get("classes_equivalencia", {}).get("validas", []))
+                qtd_classes_invalidas = len(analise_etapa2.get("classes_equivalencia", {}).get("invalidas", []))
+                qtd_regras = len(analise_etapa2.get("regras_identificadas", []))
+                yield f'data: {json.dumps({"tipo": "etapa_resultado", "etapa": 2, "percentual": 50, "classes_validas": qtd_classes_validas, "classes_invalidas": qtd_classes_invalidas, "regras": qtd_regras})}\n\n'
+            else:
+                qtd_criterios = len(analise_etapa2.get("criterios_descritivos", []))
+                qtd_variaveis = len(analise_etapa2.get("variaveis", []))
+                qtd_regras = len(analise_etapa2.get("regras_identificadas", []))
+                yield f'data: {json.dumps({"tipo": "etapa_resultado", "etapa": 2, "percentual": 50, "criterios": qtd_criterios, "variaveis": qtd_variaveis, "regras": qtd_regras})}\n\n'
             
             # Atraso de 2 segundos para percepção visual de progresso
             await asyncio.sleep(2)
 
-            # ETAPA 4: GERAÇÃO DE CASOS DE TESTE
-            yield f'data: {json.dumps({"tipo": "etapa_inicio", "etapa": 4, "titulo": "Geração de Casos de Teste (Cenários)", "descricao": "Sintetizando os casos de teste combinando as classes de equivalência e valores limites identificados na etapa anterior...", "percentual": 75})}\n\n'
+            # ETAPA 3: GERAÇÃO DE CASOS DE TESTE
+            yield f'data: {json.dumps({"tipo": "etapa_inicio", "etapa": 3, "titulo": "Geração de Casos de Teste (Cenários)", "descricao": "Sintetizando os casos de teste conforme a técnica aplicada...", "percentual": 75})}\n\n'
 
-            prompt_etapa4 = f"""
+            # Preparar prompt da etapa 3 baseado na técnica
+            if tecnica_aplicada == "Particionamento de Equivalência + Análise de Valor Limite":
+                prompt_etapa3 = f"""
         Atue como Analista de QA especialista em Engenharia de Testes.
         
         Estória Original: "{conteudo_limpo}"
         
-        Classes de Equivalência Identificadas: {json.dumps(analise_classes.get("classes_equivalencia", {}))}
+        Classes de Equivalência Identificadas: {json.dumps(analise_etapa2.get("classes_equivalencia", {}))}
         
-        Valores Limites: {json.dumps(analise_classes.get("valores_limites", []))}
+        Valores Limites: {json.dumps(analise_etapa2.get("valores_limites", []))}
         
-        Regras de Negócio: {json.dumps(analise_classes.get("regras_identificadas", []))}
+        Regras de Negócio: {json.dumps(analise_etapa2.get("regras_identificadas", []))}
 
         Com base estritamente nas classes de equivalência e valores limites acima, gere os Casos de Teste (Cenários).
         
@@ -638,6 +747,7 @@ Template esperado:
         Responda ESTRITAMENTE com o JSON no formato abaixo, sem textos explicativos:
         {{
             "variaveis_identificadas": {json.dumps(dados_analise.get("variaveis_identificadas", []))},
+            "tecnica_aplicada": "Particionamento de Equivalência + Análise de Valor Limite",
             "casos_de_teste": [
                 {{
                     "id": "CT01",
@@ -651,38 +761,77 @@ Template esperado:
             "erro_validacao": ""
         }}
         """
+            else:
+                prompt_etapa3 = f"""
+        Atue como Analista de QA especialista em testes descritivos.
+        
+        Estória Original: "{conteudo_limpo}"
+        
+        Critérios Testáveis Identificados: {json.dumps(analise_etapa2.get("criterios_descritivos", []))}
+        
+        Variáveis: {json.dumps(analise_etapa2.get("variaveis", []))}
+        
+        Regras de Negócio: {json.dumps(analise_etapa2.get("regras_identificadas", []))}
+
+        Com base estritamente nos critérios e variáveis acima, gere os Casos de Teste.
+        
+        INSTRUÇÕES:
+        - Para cada critério testável, crie casos de teste para: POSITIVOS (que atendem o critério) e NEGATIVOS (que violam o critério)
+        - Cada caso deve descrever claramente a ação e o resultado esperado
+        - NÃO aplique análise de valor limite (critérios são descritivos, não numéricos)
+        - Baseie-se nas restrições mencionadas nos critérios
+        
+        Responda ESTRITAMENTE com o JSON no formato abaixo, sem textos explicativos:
+        {{
+            "variaveis_identificadas": {json.dumps(dados_analise.get("variaveis_identificadas", []))},
+            "tecnica_aplicada": "Testes Descritivos Baseados em Critérios (sem análise de valor limite)",
+            "casos_de_teste": [
+                {{
+                    "id": "CT01",
+                    "descricao": "string explicativa clara e testável",
+                    "classe_equivalencia": "Ex: Cenário Positivo - Atende o critério de aceitação",
+                    "dados_entrada": "Descrição ou valor a ser testado",
+                    "resultado_esperado": "Comportamento esperado do sistema",
+                    "tipo": "Positivo ou Negativo"
+                }}
+            ],
+            "erro_validacao": ""
+        }}
+        """
 
             try:
-                resposta_etapa4 = await call_llm_with_retry(prompt_etapa4, max_retries=3, inicial_delay=2)
+                resposta_etapa3 = await call_llm_with_retry(prompt_etapa3, max_retries=3, inicial_delay=2)
                 
-                if resposta_etapa4 is None:
-                    yield f'data: {json.dumps({"tipo": "erro", "mensagem": "Falha na Etapa 4 (Geração de Testes) após múltiplas tentativas"})}\n\n'
+                if resposta_etapa3 is None:
+                    yield f'data: {json.dumps({"tipo": "erro", "mensagem": "Falha na Etapa 3 (Geração de Testes) após múltiplas tentativas"})}\n\n'
                     return
                 
-                texto_etapa4 = resposta_etapa4.text.replace("```json", "").replace("```", "").strip()
+                texto_etapa3 = resposta_etapa3.text.replace("```json", "").replace("```", "").strip()
                 
-                dados_saida = json.loads(texto_etapa4)
+                dados_saida = json.loads(texto_etapa3)
                 
                 if "variaveis_identificadas" not in dados_saida: 
                     dados_saida["variaveis_identificadas"] = dados_analise.get("variaveis_identificadas", [])
                 if "casos_de_teste" not in dados_saida: 
                     dados_saida["casos_de_teste"] = []
+                if "tecnica_aplicada" not in dados_saida:
+                    dados_saida["tecnica_aplicada"] = tecnica_aplicada
                 
-                # Envia resultado da Etapa 4
-                yield f'data: {json.dumps({"tipo": "etapa_resultado", "etapa": 4, "percentual": 100, "quantidade_testes": len(dados_saida.get("casos_de_teste", []))})}\n\n'
+                # Envia resultado da Etapa 3
+                yield f'data: {json.dumps({"tipo": "etapa_resultado", "etapa": 3, "percentual": 100, "quantidade_testes": len(dados_saida.get("casos_de_teste", []))})}\n\n'
                 
                 # Atraso de 2 segundos para percepção visual de progresso
                 await asyncio.sleep(2)
                 
                 # Envia os dados finais
-                yield f'data: {json.dumps({"tipo": "completo", "dados": dados_saida, "analise_classes": analise_classes, "modo": "com_chaining"})}\n\n'
+                yield f'data: {json.dumps({"tipo": "completo", "dados": dados_saida, "analise_classes": analise_etapa2, "modo": "com_chaining"})}\n\n'
 
             except json.JSONDecodeError as je:
-                print(f"[JSON ERROR] Erro ao fazer parse da Etapa 4: {je}")
+                print(f"[JSON ERROR] Erro ao fazer parse da Etapa 3: {je}")
                 yield f'data: {json.dumps({"tipo": "erro_processamento", "mensagem": "Erro na síntese dos casos de teste - JSON inválido"})}\n\n'
-            except Exception as e4:
-                print(f"[ETAPA4 ERROR] Erro na Etapa 4: {e4}")
-                yield f'data: {json.dumps({"tipo": "erro", "mensagem": f"Erro na Etapa 4: {str(e4)[:200]}"})}\n\n'
+            except Exception as e3:
+                print(f"[ETAPA3 ERROR] Erro na Etapa 3: {e3}")
+                yield f'data: {json.dumps({"tipo": "erro", "mensagem": f"Erro na Etapa 3: {str(e3)[:200]}"})}\n\n'
 
         except Exception as e:
             print(f"[STREAM ERROR] Erro geral no stream (com chaining): {e}")
